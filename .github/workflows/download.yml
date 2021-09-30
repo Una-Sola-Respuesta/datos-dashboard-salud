@@ -1,0 +1,50 @@
+name: Download Datasets
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GHA uses UTC-0
+    - cron: '0 9 * * *'
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Setup timezone
+        uses: zcong1993/setup-timezone@master
+        with:
+          timezone: America/Puerto_Rico
+
+      - name: Print date (should be UTC-4)
+        run: date
+
+      - name: Main job
+        run: |
+          # Nombre del branch al que va dirigido el push
+          dest_branch=main
+
+          # Información general
+          echo "Branch al que va dirigido el push: $dest_branch"
+          echo "Fecha actual: $(date)"
+
+          # Configuración de git
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+
+          # Checkout del branch especificado
+          git checkout $dest_branch || git checkout -b $dest_branch
+
+          # Merge del branch principal con el especificado
+          git pull origin ${{ github.event.repository.default_branch }}
+
+          # Descarga de datos
+          bash download.sh
+
+          # Commit y push
+          git add .
+          timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+          git commit -m "Añadiendo descargas ($timestamp)"
+          git push origin $dest_branch
